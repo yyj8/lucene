@@ -56,7 +56,7 @@ public class SearchDemo {
                     sb.append(";");
                 }
                 //获取docvalue值，不能这么获取，上面注释部分未写完
-                //sb.append("price=" + doc.get("price") + ";");
+//                sb.append("price=" + doc.get("price") + ";");
                 System.out.println(sb.toString());
             }
         }
