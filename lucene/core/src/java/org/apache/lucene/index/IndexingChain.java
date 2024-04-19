@@ -235,14 +235,14 @@ final class IndexingChain implements Accountable {
         state.segmentInfo.maxDoc(), comparators.toArray(IndexSorter.DocComparator[]::new));
   }
 
-  Sorter.DocMap flush(SegmentWriteState state) throws IOException {
+  Sorter.DocMap flush(SegmentWriteState state) throws IOException {//这个方法也必然被调用
 
     // NOTE: caller (DocumentsWriterPerThread) handles
     // aborting on any exception from this method
     Sorter.DocMap sortMap = maybeSortSegment(state);
     int maxDoc = state.segmentInfo.maxDoc();
     long t0 = System.nanoTime();
-    writeNorms(state, sortMap);
+    writeNorms(state, sortMap);//归一化处理
     if (infoStream.isEnabled("IW")) {
       infoStream.message(
           "IW", TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - t0) + " ms to write norms");
@@ -256,21 +256,21 @@ final class IndexingChain implements Accountable {
             state.segmentSuffix);
 
     t0 = System.nanoTime();
-    writeDocValues(state, sortMap);
+    writeDocValues(state, sortMap);//处理docvalue数据
     if (infoStream.isEnabled("IW")) {
       infoStream.message(
           "IW", TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - t0) + " ms to write docValues");
     }
 
     t0 = System.nanoTime();
-    writePoints(state, sortMap);
+    writePoints(state, sortMap);//处理point数据，个数说明参考：Lucene90PointsFormat
     if (infoStream.isEnabled("IW")) {
       infoStream.message(
           "IW", TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - t0) + " ms to write points");
     }
 
     t0 = System.nanoTime();
-    vectorValuesConsumer.flush(state, sortMap);
+    vectorValuesConsumer.flush(state, sortMap);//处理向量数据，如果未开启向量搜索，这里面直接返回
     if (infoStream.isEnabled("IW")) {
       infoStream.message(
           "IW", TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - t0) + " ms to write vectors");
@@ -278,8 +278,8 @@ final class IndexingChain implements Accountable {
 
     // it's possible all docs hit non-aborting exceptions...
     t0 = System.nanoTime();
-    storedFieldsConsumer.finish(maxDoc);
-    storedFieldsConsumer.flush(state, sortMap);
+    storedFieldsConsumer.finish(maxDoc);//处理字段原始数据
+    storedFieldsConsumer.flush(state, sortMap);//处理字段原始数据
     if (infoStream.isEnabled("IW")) {
       infoStream.message(
           "IW",
@@ -307,6 +307,8 @@ final class IndexingChain implements Accountable {
         // Use the merge instance in order to reuse the same IndexInput for all terms
         normsMergeInstance = norms.getMergeInstance();
       }
+      //获取到需要刷新的字段列表，包括数据，下面这行代码执行完，所有倒排相关数据已经刷盘；这里调用的是FreqProxTermsWriter的实现
+      //如果没有调用下面这一行代码，倒排索引相关文件，比如：.doc/.pos/.tim/.tip/.pay等文件不会刷盘
       termsHash.flush(fieldsToFlush, state, sortMap, normsMergeInstance);
     }
     if (infoStream.isEnabled("IW")) {
@@ -324,6 +326,7 @@ final class IndexingChain implements Accountable {
     indexWriterConfig
         .getCodec()
         .fieldInfosFormat()
+            //这里是要写.fnm文件
         .write(state.directory, state.segmentInfo, "", state.fieldInfos, IOContext.DEFAULT);
     if (infoStream.isEnabled("IW")) {
       infoStream.message(
@@ -444,7 +447,7 @@ final class IndexingChain implements Accountable {
     boolean success = false;
     NormsConsumer normsConsumer = null;
     try {
-      if (state.fieldInfos.hasNorms()) {
+      if (state.fieldInfos.hasNorms()) {//归一化处理
         NormsFormat normsFormat = state.segmentInfo.getCodec().normsFormat();
         assert normsFormat != null;
         normsConsumer = normsFormat.normsConsumer(state);
@@ -528,8 +531,9 @@ final class IndexingChain implements Accountable {
 
   void processDocument(int docID, Iterable<? extends IndexableField> document) throws IOException {
     // number of unique fields by names (collapses multiple field instances by the same name)
+    //按名称列出的唯一字段数（按相同名称折叠多个字段实例）
     int fieldCount = 0;
-    int indexedFieldCount = 0; // number of unique fields indexed with postings
+    int indexedFieldCount = 0; // number of unique fields indexed with postings，需要被索引的去重后的字段个数
     long fieldGen = nextFieldGen++;
     int docFieldIdx = 0;
 
@@ -539,14 +543,16 @@ final class IndexingChain implements Accountable {
     // analyzer is free to reuse TokenStream across fields
     // (i.e., we cannot have more than one TokenStream
     // running "at once"):
-    termsHash.startDocument();
+    //注意：如果有多值字段，我们需要两次通过，因为我们必须同时处理给定字段的所有实例，因为分析器可以跨字段自由重用TokenStream（即，我们不能同时运行多个TokenStream）：
+    termsHash.startDocument();//这里面主要是重置字段的值
     startStoredFields(docID);
     try {
       // 1st pass over doc fields – verify that doc schema matches the index schema
       // build schema for each unique doc field
-      for (IndexableField field : document) {
+      //第一次遍历文档所有字段，验证文档的schema是否匹配index的schema，并构建schema为每个字段
+      for (IndexableField field : document) {//遍历每个字段
         IndexableFieldType fieldType = field.fieldType();
-        PerField pf = getOrAddPerField(field.name());
+        PerField pf = getOrAddPerField(field.name());//获取字段
         if (pf.fieldGen != fieldGen) { // first time we see this field in this document
           fields[fieldCount++] = pf;
           pf.fieldGen = fieldGen;
@@ -554,12 +560,13 @@ final class IndexingChain implements Accountable {
         }
         if (docFieldIdx >= docFields.length) oversizeDocFields();
         docFields[docFieldIdx++] = pf;
-        updateDocFieldSchema(field.name(), pf.schema, fieldType);
+        updateDocFieldSchema(field.name(), pf.schema, fieldType);//更新字段是否有归一化、向量搜索、位置等
       }
       // For each field, if it the first time we see this field in this segment,
       // initialize its FieldInfo.
       // If we have already seen this field, verify that its schema
       // within the current doc matches its schema in the index.
+      //遍历字段列表，如果第一次出现在这个segment中，初始化它的fieldInfo信息；如果不是第一次，那就验证schema
       for (int i = 0; i < fieldCount; i++) {
         PerField pf = fields[i];
         if (pf.fieldInfo == null) {
@@ -572,23 +579,26 @@ final class IndexingChain implements Accountable {
       // 2nd pass over doc fields – index each field
       // also count the number of unique fields indexed with postings
       docFieldIdx = 0;
+      //第二次遍历所有字段，构建每个字段的索引，并记录被索引的字段去重后的个数
       for (IndexableField field : document) {
+        //【关键逻辑：processField方法中】处理文档的每个字段，每次传入同一个docID
         if (processField(docID, field, docFields[docFieldIdx])) {
           fields[indexedFieldCount] = docFields[docFieldIdx];
-          indexedFieldCount++;
+          indexedFieldCount++;//被索引字段计数器+1
         }
         docFieldIdx++;
-      }
+      }//for循环执行完毕后，传入的这个文档所有字段的倒排及原始数据已经写入缓存
     } finally {
       if (hasHitAbortingException == false) {
         // Finish each indexed field name seen in the document:
-        for (int i = 0; i < indexedFieldCount; i++) {
-          fields[i].finish(docID);
+        for (int i = 0; i < indexedFieldCount; i++) {//完成被索引字段
+          fields[i].finish(docID);//主要是归一化处理（如果开启），针对非向量化操作或者term个数为0的情况，做完归一化后，不再做其他逻辑处理，直接返回
         }
+        //这里面最核心的逻辑就是判断是否触发flush操作，如果触发，不是强制flush，也就是调用方法： flush(false)
         finishStoredFields();
         // TODO: for broken docs, optimize termsHash.finishDocument
         try {
-          termsHash.finishDocument(docID);
+          termsHash.finishDocument(docID);//如果未开启向量搜索，这里进入后里面不会执行什么逻辑就返回了
         } catch (Throwable th) {
           // Must abort, on the possibility that on-disk term
           // vectors are now corrupt:
@@ -686,23 +696,23 @@ final class IndexingChain implements Accountable {
     boolean indexedField = false;
 
     // Invert indexed fields
-    if (fieldType.indexOptions() != IndexOptions.NONE) {
-      if (pf.first) { // first time we see this field in this doc
-        pf.invert(docID, field, true);
+    if (fieldType.indexOptions() != IndexOptions.NONE) {//如果字段的IndexOptions不等于NONE，那就需要构建倒排索引
+      if (pf.first) { // first time we see this field in this doc，字段第一次出现在文档中，通常这里为true
+        pf.invert(docID, field, true);//字段倒排，同一个文档传入docID一样，这里执行完，字段倒排构建完成
         pf.first = false;
         indexedField = true;
       } else {
         pf.invert(docID, field, false);
       }
     }
-
+    //到这里为止，单个字段的倒排信息已经处理完放入缓存
     // Add stored fields
-    if (fieldType.stored()) {
-      StoredValue storedValue = field.storedValue();
-      if (storedValue == null) {
+    if (fieldType.stored()) {//字段设置是否存储，如果存储，进入if逻辑
+      StoredValue storedValue = field.storedValue();//获取要存储字段的原始字符串内容
+      if (storedValue == null) {//字段值为空抛出异常
         throw new IllegalArgumentException("Cannot store a null value");
       } else if (storedValue.getType() == StoredValue.Type.STRING
-          && storedValue.getStringValue().length() > IndexWriter.MAX_STORED_STRING_LENGTH) {
+          && storedValue.getStringValue().length() > IndexWriter.MAX_STORED_STRING_LENGTH) {//字段内容太大就抛出异常
         throw new IllegalArgumentException(
             "stored field \""
                 + field.name()
@@ -711,15 +721,17 @@ final class IndexingChain implements Accountable {
                 + " characters) to store");
       }
       try {
+        //写入字段原始数据
         storedFieldsConsumer.writeField(pf.fieldInfo, storedValue);
       } catch (Throwable th) {
         onAbortingException(th);
         throw th;
       }
     }
+    //到这里为止，字段原始数据已经写到缓存
 
     DocValuesType dvType = fieldType.docValuesType();
-    if (dvType != DocValuesType.NONE) {
+    if (dvType != DocValuesType.NONE) {//如果是docvalue字段进入if逻辑
       indexDocValue(docID, pf, dvType, field);
     }
     if (fieldType.pointDimensionCount() != 0) {
@@ -728,7 +740,7 @@ final class IndexingChain implements Accountable {
     if (fieldType.vectorDimension() != 0) {
       indexVectorValue(docID, pf, fieldType.vectorEncoding(), field);
     }
-    return indexedField;
+    return indexedField;//到这里，说明字段索引已经建立完成，放到缓存
   }
 
   /**
@@ -736,12 +748,12 @@ final class IndexingChain implements Accountable {
    * FieldType}, and creates a new {@link PerField} if this field name wasn't seen yet.
    */
   private PerField getOrAddPerField(String fieldName) {
-    final int hashPos = fieldName.hashCode() & hashMask;
-    PerField pf = fieldHash[hashPos];
-    while (pf != null && pf.fieldName.equals(fieldName) == false) {
+    final int hashPos = fieldName.hashCode() & hashMask;//按位与操作，这里的hashMask的值为当前的fieldHash的数组长度2倍减1
+    PerField pf = fieldHash[hashPos];//获取字段数组上存储的字段
+    while (pf != null && pf.fieldName.equals(fieldName) == false) {//如果字段不为空，且名称和当前字段不等，说明位置冲突了
       pf = pf.next;
     }
-    if (pf == null) {
+    if (pf == null) {//如果字段不存在，则创建
       // first time we encounter field with this name in this segment
       FieldSchema schema = new FieldSchema(fieldName);
       pf =
@@ -1087,7 +1099,7 @@ final class IndexingChain implements Accountable {
     }
 
     public void finish(int docID) throws IOException {
-      if (fieldInfo.omitsNorms() == false) {
+      if (fieldInfo.omitsNorms() == false) {//如果需要归一化，进入if逻辑
         long normValue;
         if (invertState.length == 0) {
           // the field exists in this document, but it did not have
@@ -1095,7 +1107,7 @@ final class IndexingChain implements Accountable {
           // to the norm
           normValue = 0;
         } else {
-          normValue = similarity.computeNorm(invertState);
+          normValue = similarity.computeNorm(invertState);//计算归一化值
           if (normValue == 0) {
             throw new IllegalStateException(
                 "Similarity " + similarity + " return 0 for non-empty field");
@@ -1103,26 +1115,27 @@ final class IndexingChain implements Accountable {
         }
         norms.addValue(docID, normValue);
       }
-      termsHashPerField.finish();
+      termsHashPerField.finish();//针对非向量化操作或者term个数为0的情况，里面其实不做任何逻辑处理
     }
 
     /**
      * Inverts one field for one document; first is true if this is the first time we are seeing
      * this field name in this document.
+     * 为一个文档反转一个字段；如果这是我们第一次在文档中看到这个字段名，那么first就是true
      */
     public void invert(int docID, IndexableField field, boolean first) throws IOException {
       assert field.fieldType().indexOptions().compareTo(IndexOptions.DOCS) >= 0;
 
-      if (first) {
+      if (first) {//通常情况这个first就是true
         // First time we're seeing this field (indexed) in this document
-        invertState.reset();
+        invertState.reset();//重置字段倒排state信息到初始默认值
       }
 
       switch (field.invertableType()) {
-        case BINARY:
+        case BINARY://针对非分词字段走这分支
           invertTerm(docID, field, first);
           break;
-        case TOKEN_STREAM:
+        case TOKEN_STREAM://针对分词字段走这分支
           invertTokenStream(docID, field, first);
           break;
         default:
@@ -1132,20 +1145,20 @@ final class IndexingChain implements Accountable {
 
     private void invertTokenStream(int docID, IndexableField field, boolean first)
         throws IOException {
-      final boolean analyzed = field.fieldType().tokenized() && analyzer != null;
+      final boolean analyzed = field.fieldType().tokenized() && analyzer != null;//针对分词字段，这里的值为true
       /*
        * To assist people in tracking down problems in analysis components, we wish to write the field name to the infostream
        * when we fail. We expect some caller to eventually deal with the real exception, so we don't want any 'catch' clauses,
        * but rather a finally that takes note of the problem.
        */
       boolean succeededInProcessingField = false;
-      try (TokenStream stream = tokenStream = field.tokenStream(analyzer, tokenStream)) {
+      try (TokenStream stream = tokenStream = field.tokenStream(analyzer, tokenStream)) {//创建token流，默认分词器为StandardAnalyzer分词器，调用Field类的tokenStream方法
         // reset the TokenStream to the first token
         stream.reset();
         invertState.setAttributeSource(stream);
         termsHashPerField.start(field, first);
 
-        while (stream.incrementToken()) {
+        while (stream.incrementToken()) {//遍历token流
 
           // If we hit an exception in stream.next below
           // (which is fairly common, e.g. if analyzer
@@ -1193,8 +1206,8 @@ final class IndexingChain implements Accountable {
             invertState.numOverlap++;
           }
 
-          int startOffset = invertState.offset + invertState.offsetAttribute.startOffset();
-          int endOffset = invertState.offset + invertState.offsetAttribute.endOffset();
+          int startOffset = invertState.offset + invertState.offsetAttribute.startOffset();//token的开始字节偏移量
+          int endOffset = invertState.offset + invertState.offsetAttribute.endOffset();//token的结束字节偏移量
           if (startOffset < invertState.lastStartOffset || endOffset < startOffset) {
             throw new IllegalArgumentException(
                 "startOffset must be non-negative, and endOffset must be >= startOffset, and offsets must not go backwards "
@@ -1208,7 +1221,7 @@ final class IndexingChain implements Accountable {
                     + field.name()
                     + "'");
           }
-          invertState.lastStartOffset = startOffset;
+          invertState.lastStartOffset = startOffset;//上一个token的开始字节偏移量
 
           try {
             invertState.length =
@@ -1226,7 +1239,7 @@ final class IndexingChain implements Accountable {
           // internal state of the terms hash is now
           // corrupt and should not be flushed to a
           // new segment:
-          try {
+          try {//添加term，并指定对应文档ID
             termsHashPerField.add(invertState.termAttribute.getBytesRef(), docID);
           } catch (MaxBytesLengthExceededException e) {
             byte[] prefix = new byte[30];
@@ -1269,14 +1282,14 @@ final class IndexingChain implements Accountable {
         }
       }
 
-      if (analyzed) {
+      if (analyzed) {//要分词，这里肯定为true
         invertState.position += analyzer.getPositionIncrementGap(fieldInfo.name);
         invertState.offset += analyzer.getOffsetGap(fieldInfo.name);
       }
     }
 
     private void invertTerm(int docID, IndexableField field, boolean first) throws IOException {
-      BytesRef binaryValue = field.binaryValue();
+      BytesRef binaryValue = field.binaryValue();//获取非分词字段二进制数据
       if (binaryValue == null) {
         throw new IllegalArgumentException(
             "Field "
@@ -1284,6 +1297,8 @@ final class IndexingChain implements Accountable {
                 + " returns TERM for invertableType() and null for binaryValue(), which is illegal");
       }
       final IndexableFieldType fieldType = field.fieldType();
+
+      //由于这里是非分词逻辑，所以分词或索引邻近数据的字段必须产生非空的TokenStream，抛出异常，类型不匹配
       if (fieldType.tokenized()
           || fieldType.indexOptions().compareTo(IndexOptions.DOCS_AND_FREQS) > 0
           || fieldType.storeTermVectorPositions()

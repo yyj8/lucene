@@ -144,6 +144,7 @@ abstract class TermsHashPerField implements Comparable<TermsHashPerField> {
    * Called when we first encounter a new term. We must allocate slies to store the postings (vInt
    * compressed doc/freq/prox), and also the int pointers to where (in our ByteBlockPool storage)
    * the postings for this term begin.
+   *  当我们第一次遇到一个新term时调用。我们必须分配slies来存储帖子（vInt压缩的doc/freq/prox），以及指向本term倒排表开始位置（在我们的ByteBlockPool存储中）的int指针。
    */
   private void initStreamSlices(int termID, int docID) throws IOException {
     // Init stream slices
@@ -190,7 +191,8 @@ abstract class TermsHashPerField implements Comparable<TermsHashPerField> {
     // We are first in the chain so we must "intern" the
     // term text into textStart address
     // Get the text & hash of this term.
-    int termID = bytesHash.add(termBytes);
+    //我们是链中的第一个，所以我们必须将term文本“实习生”到text起始地址获取该term的文本和哈希。
+    int termID = bytesHash.add(termBytes);//获取一个termID
     // System.out.println("add term=" + termBytesRef.utf8ToString() + " doc=" + docState.docID + "
     // termID=" + termID);
     if (termID >= 0) { // New posting

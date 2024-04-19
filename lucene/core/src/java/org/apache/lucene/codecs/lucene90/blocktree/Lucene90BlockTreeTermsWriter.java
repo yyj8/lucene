@@ -170,8 +170,8 @@ import org.apache.lucene.util.fst.Util;
  * <p>Notes:
  *
  * <ul>
- *   <li>FieldNumber is the fields number from {@link FieldInfos}. (.fnm)
- *   <li>NumTerms is the number of unique terms for the field.
+ *   <li>FieldNumber is the fields number from {@link FieldInfos}. (.fnm)字段数
+ *   <li>NumTerms is the number of unique terms for the field.字段中唯一的term个数
  *   <li>RootCode points to the root block for the field.
  *   <li>SumDocFreq is the total number of postings, the number of term-document pairs across the
  *       entire field.
@@ -257,7 +257,7 @@ public final class Lucene90BlockTreeTermsWriter extends FieldsConsumer {
     this.minItemsInBlock = minItemsInBlock;
     this.maxItemsInBlock = maxItemsInBlock;
 
-    this.maxDoc = state.segmentInfo.maxDoc();
+    this.maxDoc = state.segmentInfo.maxDoc();//这里的maxDoc就是这次写入的文档数量
     this.fieldInfos = state.fieldInfos;
     this.postingsWriter = postingsWriter;
 
@@ -266,11 +266,11 @@ public final class Lucene90BlockTreeTermsWriter extends FieldsConsumer {
             state.segmentInfo.name,
             state.segmentSuffix,
             Lucene90BlockTreeTermsReader.TERMS_EXTENSION);
-    termsOut = state.directory.createOutput(termsName, state.context);
+    termsOut = state.directory.createOutput(termsName, state.context);//创建.tim文件
     boolean success = false;
     IndexOutput metaOut = null, indexOut = null;
     try {
-      CodecUtil.writeIndexHeader(
+      CodecUtil.writeIndexHeader(//向.tim文件写header
           termsOut,
           Lucene90BlockTreeTermsReader.TERMS_CODEC_NAME,
           Lucene90BlockTreeTermsReader.VERSION_CURRENT,
@@ -282,8 +282,8 @@ public final class Lucene90BlockTreeTermsWriter extends FieldsConsumer {
               state.segmentInfo.name,
               state.segmentSuffix,
               Lucene90BlockTreeTermsReader.TERMS_INDEX_EXTENSION);
-      indexOut = state.directory.createOutput(indexName, state.context);
-      CodecUtil.writeIndexHeader(
+      indexOut = state.directory.createOutput(indexName, state.context);//创建.tip文件
+      CodecUtil.writeIndexHeader(//向.tip文件写header
           indexOut,
           Lucene90BlockTreeTermsReader.TERMS_INDEX_CODEC_NAME,
           Lucene90BlockTreeTermsReader.VERSION_CURRENT,
@@ -296,8 +296,8 @@ public final class Lucene90BlockTreeTermsWriter extends FieldsConsumer {
               state.segmentInfo.name,
               state.segmentSuffix,
               Lucene90BlockTreeTermsReader.TERMS_META_EXTENSION);
-      metaOut = state.directory.createOutput(metaName, state.context);
-      CodecUtil.writeIndexHeader(
+      metaOut = state.directory.createOutput(metaName, state.context);//创建.tmd文件
+      CodecUtil.writeIndexHeader(//向.tmd文件写header
           metaOut,
           Lucene90BlockTreeTermsReader.TERMS_META_CODEC_NAME,
           Lucene90BlockTreeTermsReader.VERSION_CURRENT,

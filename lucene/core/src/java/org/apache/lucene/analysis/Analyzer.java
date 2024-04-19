@@ -187,16 +187,16 @@ public abstract class Analyzer implements Closeable {
         (components == null || components.reusableStringReader == null)
             ? new ReusableStringReader()
             : components.reusableStringReader;
-    strReader.setValue(text);
-    final Reader r = initReader(fieldName, strReader);
+    strReader.setValue(text);//把需要分词的字段的文本内容设置到reader中
+    final Reader r = initReader(fieldName, strReader);//初始化reader
     if (components == null) {
-      components = createComponents(fieldName);
+      components = createComponents(fieldName);//创建token分词组件，这个和使用的分词器有关，比如默认的或者中文IK分词
       reuseStrategy.setReusableComponents(this, fieldName, components);
     }
 
-    components.setReader(r);
+    components.setReader(r);//为分词器设置reader对象，这里面包含了需要分词文本信息
     components.reusableStringReader = strReader;
-    return components.getTokenStream();
+    return components.getTokenStream();//返回token分词流
   }
 
   /**

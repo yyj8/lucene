@@ -134,7 +134,7 @@ final class FreqProxTermsWriterPerField extends TermsHashPerField {
       fieldState.maxTermFrequency =
           Math.max(postings.termFreqs[termID], fieldState.maxTermFrequency);
     }
-    fieldState.uniqueTermCount++;
+    fieldState.uniqueTermCount++;//去重后的token个数
   }
 
   @Override
@@ -233,7 +233,7 @@ final class FreqProxTermsWriterPerField extends TermsHashPerField {
   static final class FreqProxPostingsArray extends ParallelPostingsArray {
     public FreqProxPostingsArray(
         int size, boolean writeFreqs, boolean writeProx, boolean writeOffsets) {
-      super(size);
+      super(size);//这里调用父类，初始化term的个数，即去重后的token数
       if (writeFreqs) {
         termFreqs = new int[size];
       }
@@ -251,11 +251,11 @@ final class FreqProxTermsWriterPerField extends TermsHashPerField {
       // writeOffsets);
     }
 
-    int[] termFreqs; // # times this term occurs in the current doc
-    int[] lastDocIDs; // Last docID where this term occurred
+    int[] termFreqs; // # times this term occurs in the current doc，表示当前term在字段中出现的次数，字段term去重后有几个，数组的长度就是几个
+    int[] lastDocIDs; // Last docID where this term occurred，term出现在的最后docID，字段term去重后有几个，数组的长度就是几个
     int[] lastDocCodes; // Code for prior doc
-    int[] lastPositions; // Last position where this term occurred
-    int[] lastOffsets; // Last endOffset where this term occurred
+    int[] lastPositions; // Last position where this term occurred，term在字段中最后出现在第几个term上，即：每个term最后的出现位置，字段term去重后有几个，数组的长度就是几个
+    int[] lastOffsets; // Last endOffset where this term occurred，表示term出现在字段中的开始字节偏移量，字段term去重后有几个，数组的长度就是几个；代码注释里面写的endOffset并不准确。
 
     @Override
     ParallelPostingsArray newInstance(int size) {

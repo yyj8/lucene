@@ -88,7 +88,7 @@ final class FreqProxTermsWriter extends TermsHash {
       Sorter.DocMap sortMap,
       NormsProducer norms)
       throws IOException {
-    super.flush(fieldsToFlush, state, sortMap, norms);
+    super.flush(fieldsToFlush, state, sortMap, norms);//调用TermsHash的实现
 
     // Gather all fields that saw any postings:
     List<FreqProxTermsWriterPerField> allFields = new ArrayList<>();
@@ -108,7 +108,7 @@ final class FreqProxTermsWriter extends TermsHash {
     }
 
     // Sort by field name
-    CollectionUtil.introSort(allFields);
+    CollectionUtil.introSort(allFields);//字段名称排序，按照字典序
 
     Fields fields = new FreqProxFields(allFields);
     applyDeletes(state, fields);

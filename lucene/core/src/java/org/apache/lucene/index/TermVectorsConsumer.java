@@ -116,7 +116,7 @@ class TermVectorsConsumer extends TermsHash {
   @Override
   void finishDocument(int docID) throws IOException {
 
-    if (!hasVectors) {
+    if (!hasVectors) {//未开启向量搜索的话，这里直接返回了
       return;
     }
 
@@ -175,7 +175,7 @@ class TermVectorsConsumer extends TermsHash {
 
   @Override
   void startDocument() {
-    resetFields();
+    resetFields();//重置字段值
     numVectorFields = 0;
   }
 }

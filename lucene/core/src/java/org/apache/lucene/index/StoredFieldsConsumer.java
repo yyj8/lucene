@@ -54,12 +54,12 @@ class StoredFieldsConsumer {
 
   void startDocument(int docID) throws IOException {
     assert lastDoc < docID;
-    initStoredFieldsWriter();
-    while (++lastDoc < docID) {
+    initStoredFieldsWriter();//初始化stored字段writer对象
+    while (++lastDoc < docID) {//这里的lastDoc就是传入的docs列表当前遍历到第几个ID了
       writer.startDocument();
       writer.finishDocument();
     }
-    writer.startDocument();
+    writer.startDocument();//这里如果调用的Lucene90CompressionStoredFieldsWriter对象，那里面什么都没有做
   }
 
   void writeField(FieldInfo info, StoredValue value) throws IOException {

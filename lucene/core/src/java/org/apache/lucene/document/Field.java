@@ -488,7 +488,7 @@ public class Field implements IndexableField {
     } else if (readerValue() != null) {
       return analyzer.tokenStream(name(), readerValue());
     } else if (stringValue() != null) {
-      return analyzer.tokenStream(name(), stringValue());
+      return analyzer.tokenStream(name(), stringValue());//传入的name为字段名称，stringValue为字段值
     }
 
     throw new IllegalArgumentException(

@@ -81,7 +81,7 @@ abstract class TermsHash {
       throws IOException {
     if (nextTermsHash != null) {
       Map<String, TermsHashPerField> nextChildFields = new HashMap<>();
-      for (final Map.Entry<String, TermsHashPerField> entry : fieldsToFlush.entrySet()) {
+      for (final Map.Entry<String, TermsHashPerField> entry : fieldsToFlush.entrySet()) {//遍历字段列表，一个字段一个entry
         nextChildFields.put(entry.getKey(), entry.getValue().getNextPerField());
       }
       nextTermsHash.flush(nextChildFields, state, sortMap, norms);
@@ -97,7 +97,7 @@ abstract class TermsHash {
   }
 
   void startDocument() throws IOException {
-    if (nextTermsHash != null) {
+    if (nextTermsHash != null) {//正常情况，这里的nextTermsHash是不会为null的
       nextTermsHash.startDocument();
     }
   }

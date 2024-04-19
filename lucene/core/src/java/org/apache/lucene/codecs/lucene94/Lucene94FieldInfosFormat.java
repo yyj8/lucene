@@ -337,11 +337,11 @@ public final class Lucene94FieldInfosFormat extends FieldInfosFormat {
           segmentInfo.getId(),
           segmentSuffix);
       output.writeVInt(infos.size());
-      for (FieldInfo fi : infos) {
+      for (FieldInfo fi : infos) {//遍历写所有字段相关信息
         fi.checkConsistency();
 
-        output.writeString(fi.name);
-        output.writeVInt(fi.number);
+        output.writeString(fi.name);//字段名称
+        output.writeVInt(fi.number);//字段在文档中出现的编号
 
         byte bits = 0x0;
         if (fi.hasVectors()) bits |= STORE_TERMVECTOR;

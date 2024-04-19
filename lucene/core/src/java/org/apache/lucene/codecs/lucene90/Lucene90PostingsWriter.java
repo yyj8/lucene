@@ -103,21 +103,22 @@ public final class Lucene90PostingsWriter extends PushPostingsWriterBase {
     String docFileName =
         IndexFileNames.segmentFileName(
             state.segmentInfo.name, state.segmentSuffix, Lucene90PostingsFormat.DOC_EXTENSION);
-    docOut = state.directory.createOutput(docFileName, state.context);
+    docOut = state.directory.createOutput(docFileName, state.context);//创建.doc文件
     IndexOutput posOut = null;
     IndexOutput payOut = null;
     boolean success = false;
     try {
-      CodecUtil.writeIndexHeader(
+      CodecUtil.writeIndexHeader(//向.doc文件写入header信息
           docOut, DOC_CODEC, VERSION_CURRENT, state.segmentInfo.getId(), state.segmentSuffix);
       pforUtil = new PForUtil(new ForUtil());
+      //setIndexOptions值为：DOCS_AND_FREQS_AND_POSITIONS或者DOCS_AND_FREQS_AND_POSITIONS_AND_OFFSETS下面的if条件就为true
       if (state.fieldInfos.hasProx()) {
         posDeltaBuffer = new long[BLOCK_SIZE];
         String posFileName =
             IndexFileNames.segmentFileName(
                 state.segmentInfo.name, state.segmentSuffix, Lucene90PostingsFormat.POS_EXTENSION);
-        posOut = state.directory.createOutput(posFileName, state.context);
-        CodecUtil.writeIndexHeader(
+        posOut = state.directory.createOutput(posFileName, state.context);//创建.pos文件
+        CodecUtil.writeIndexHeader(//向.pos文件写入header信息
             posOut, POS_CODEC, VERSION_CURRENT, state.segmentInfo.getId(), state.segmentSuffix);
 
         if (state.fieldInfos.hasPayloads()) {
@@ -142,8 +143,8 @@ public final class Lucene90PostingsWriter extends PushPostingsWriterBase {
                   state.segmentInfo.name,
                   state.segmentSuffix,
                   Lucene90PostingsFormat.PAY_EXTENSION);
-          payOut = state.directory.createOutput(payFileName, state.context);
-          CodecUtil.writeIndexHeader(
+          payOut = state.directory.createOutput(payFileName, state.context);//创建.pay文件
+          CodecUtil.writeIndexHeader(//向.pay文件写入header信息
               payOut, PAY_CODEC, VERSION_CURRENT, state.segmentInfo.getId(), state.segmentSuffix);
         }
       } else {

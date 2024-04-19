@@ -402,7 +402,7 @@ final class DocumentsWriter implements Closeable, Accountable {
       throws IOException {
     hasEvents |= applyAllDeletes();
     if (flushingDWPT != null) {
-      hasEvents |= doFlush(flushingDWPT);
+      hasEvents |= doFlush(flushingDWPT);//调用这里刷新
     } else if (config.checkPendingFlushOnUpdate) {
       final DocumentsWriterPerThread nextPendingFlush = flushControl.nextPendingFlush();
       if (nextPendingFlush != null) {
@@ -428,7 +428,7 @@ final class DocumentsWriter implements Closeable, Accountable {
       // waits for all DWPT to be released:
       ensureOpen();
       try {
-        seqNo =
+        seqNo =//主要就是去构建倒排索引、docValue、字段原始数据、各类元数据等并刷入缓存
             dwpt.updateDocuments(docs, delNode, flushNotifications, numDocsInRAM::incrementAndGet);
       } finally {
         if (dwpt.isAborted()) {
@@ -445,6 +445,7 @@ final class DocumentsWriter implements Closeable, Accountable {
       assert dwpt.isHeldByCurrentThread() == false : "we didn't release the dwpt even on abort";
     }
 
+    //没有这行代码的调用，倒排、docValue等数据不会被刷盘，这下面的逻辑只是刷盘，构建过程还得看updateDocuments中的逻辑
     if (postUpdate(flushingDWPT, hasEvents)) {
       seqNo = -seqNo;
     }
@@ -488,7 +489,7 @@ final class DocumentsWriter implements Closeable, Accountable {
           final int flushingDocsInRam = flushingDWPT.getNumDocsInRAM();
           boolean dwptSuccess = false;
           try {
-            // flush concurrently without locking
+            // flush concurrently without locking，并发刷数据到磁盘，不加锁
             final FlushedSegment newSegment = flushingDWPT.flush(flushNotifications);
             ticketQueue.addSegment(ticket, newSegment);
             dwptSuccess = true;
@@ -505,7 +506,7 @@ final class DocumentsWriter implements Closeable, Accountable {
             }
           }
           // flush was successful once we reached this point - new seg. has been assigned to the
-          // ticket!
+          // ticket! 当我们达到这一点时，flush就成功了——新segment已分配给这个ticket
           success = true;
         } finally {
           if (!success && ticket != null) {

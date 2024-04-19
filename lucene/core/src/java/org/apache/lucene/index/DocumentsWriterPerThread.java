@@ -237,14 +237,14 @@ final class DocumentsWriterPerThread implements Accountable {
           // document, so the counter will be "wrong" in that case, but
           // it's very hard to fix (we can't easily distinguish aborting
           // vs non-aborting exceptions):
-          reserveOneDoc();
+          reserveOneDoc();//判断是否pending文档数量超过实际最大文档数，如果超过，则计数器减1
           try {
-            indexingChain.processDocument(numDocsInRAM++, doc);
+            indexingChain.processDocument(numDocsInRAM++, doc);//遍历传入文档列表，一条一条的处理和构建数据
           } finally {
-            onNewDocOnRAM.run();
+            onNewDocOnRAM.run();//内存中文档数计数器+1
           }
         }
-        allDocsIndexed = true;
+        allDocsIndexed = true;//这里说明docs列表传入的文档都已经建立好索引，但是还在缓存中
         return finishDocuments(deleteNode, docsInRamBefore);
       } finally {
         if (!allDocsIndexed && !aborted) {
@@ -339,7 +339,7 @@ final class DocumentsWriterPerThread implements Accountable {
   }
 
   /** Flush all pending docs to a new segment */
-  FlushedSegment flush(DocumentsWriter.FlushNotifications flushNotifications) throws IOException {
+  FlushedSegment flush(DocumentsWriter.FlushNotifications flushNotifications) throws IOException {//这个方法必然被调用
     assert flushPending.get() == Boolean.TRUE;
     assert numDocsInRAM > 0;
     assert deleteSlice.isEmpty() : "all deletes must be applied in prepareFlush";
@@ -357,7 +357,7 @@ final class DocumentsWriterPerThread implements Accountable {
     // Apply delete-by-docID now (delete-byDocID only
     // happens when an exception is hit processing that
     // doc, eg if analyzer has some problem w/ the text):
-    if (numDeletedDocIds > 0) {
+    if (numDeletedDocIds > 0) {//删除docID，修改对应bit位
       flushState.liveDocs = new FixedBitSet(numDocsInRAM);
       flushState.liveDocs.set(0, numDocsInRAM);
       for (int i = 0; i < numDeletedDocIds; i++) {
@@ -389,7 +389,7 @@ final class DocumentsWriterPerThread implements Accountable {
       } else {
         softDeletedDocs = null;
       }
-      sortMap = indexingChain.flush(flushState);
+      sortMap = indexingChain.flush(flushState);//执行完这一行代码，相关数据都已经从缓存刷盘完成
       if (softDeletedDocs == null) {
         flushState.softDelCountOnFlush = 0;
       } else {

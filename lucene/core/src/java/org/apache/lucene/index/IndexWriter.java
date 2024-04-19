@@ -1544,7 +1544,7 @@ public class IndexWriter
     try {
       final long seqNo = maybeProcessEvents(docWriter.updateDocuments(docs, delNode));
       success = true;
-      return seqNo;
+      return seqNo;//返回序号
     } catch (VirtualMachineError tragedy) {
       tragicEvent(tragedy, "updateDocuments");
       throw tragedy;
@@ -1819,7 +1819,8 @@ public class IndexWriter
    * Updates a document by first deleting the document(s) containing <code>term</code> and then
    * adding the new document. The delete and then add are atomic as seen by a reader on the same
    * index (flush may happen only after the add).
-   *
+   * 更新文档之前先删除包含指定term的文档。
+   * 删除和添加是原子的，正如同一索引上的reader所看到的那样（刷新可能只在添加之后发生）。
    * @return The <a href="#sequence_number">sequence number</a> for this operation
    * @param term the term to identify the document(s) to be deleted
    * @param doc the document to be added
@@ -1827,7 +1828,7 @@ public class IndexWriter
    * @throws IOException if there is a low-level IO error
    */
   public long updateDocument(Term term, Iterable<? extends IndexableField> doc) throws IOException {
-    return updateDocuments(
+    return updateDocuments(//针对新增文档，这里的term将为null
         term == null ? null : DocumentsWriterDeleteQueue.newNode(term), List.of(doc));
   }
 
@@ -5887,7 +5888,7 @@ public class IndexWriter
    * @return the given seqId inverted if negative.
    */
   private long maybeProcessEvents(long seqNo) throws IOException {
-    if (seqNo < 0) {
+    if (seqNo < 0) {//如果序号小于0，触发合并
       seqNo = -seqNo;
       processEvents(true);
     }

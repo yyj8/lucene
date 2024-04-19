@@ -46,6 +46,7 @@ import org.apache.lucene.util.packed.DirectWriter;
  *   <li>SPARSE: This strategy is used when a block contains at most 4095 documents. The lower 16
  *       bits of doc IDs are stored as {@link DataOutput#writeShort(short) shorts} while the upper
  *       16 bits are given by the block ID.
+ *       稀疏：当一个块最多包含4095个文档时，会使用此策略。文档ID的低16位存储为{@link DataOutput#writeShort（short）short}，而高16位由块ID给定。
  *   <li>DENSE: This strategy is used when a block contains between 4096 and 65535 documents. The
  *       lower bits of doc IDs are stored in a bit set. Advancing &lt; 512 documents is performed
  *       using {@link Long#numberOfTrailingZeros(long) ntz} operations while the index is computed
@@ -55,11 +56,14 @@ import org.apache.lucene.util.packed.DirectWriter;
  *       sub-block that is skipped to is retrieved from a rank-table positioned before the bit set.
  *       The rank-table holds the origo index numbers for all 512 documents sub-blocks, represented
  *       as an unsigned short for each 128 blocks.
+ *       密集：当一个块包含4096~65535个文档时使用此策略。
  *   <li>ALL: This strategy is used when a block contains exactly 65536 documents, meaning that the
  *       block is full. In that case doc IDs do not need to be stored explicitly. This is typically
  *       faster than both SPARSE and DENSE which is a reason why it is preferable to have all
  *       documents that have a value for a field using contiguous doc IDs, for instance by using
  *       {@link IndexWriterConfig#setIndexSort(org.apache.lucene.search.Sort) index sorting}.
+ *       当块的大小刚好等于65536个文档时使用此策略,意味着这个块满了。在这种情况下，文档ID不需要显式存储。
+ *       这通常比SPARSE和DENSE都快，这就是为什么最好让所有具有字段值的文档使用连续的文档ID，例如使用{@link IndexWriterConfig#setIndexSort（org.apache.locene.search.Sort）索引排序}。
  * </ul>
  *
  * <p>Skipping blocks to arrive at a wanted document is either done on an iterative basis or by

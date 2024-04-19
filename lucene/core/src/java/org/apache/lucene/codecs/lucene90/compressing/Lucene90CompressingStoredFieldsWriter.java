@@ -187,6 +187,8 @@ public final class Lucene90CompressingStoredFieldsWriter extends StoredFieldsWri
     numStoredFieldsInDoc = 0;
     endOffsets[numBufferedDocs] = Math.toIntExact(bufferedDocs.size());
     ++numBufferedDocs;
+    //判断是否触发flush，触发条件：缓存的文档条数或者文档大小超过设置的阈值.满足二者之一就触发。
+    //具体是多少，可以查看类：Lucene90StoredFieldsFormat，里面有两种模式：BEST_SPEED（速度优先，1024文档，8KB大小），BEST_COMPRESSION(压缩优先，4096文档，48KB大小)
     if (triggerFlush()) {
       flush(false);
     }
@@ -227,6 +229,7 @@ public final class Lucene90CompressingStoredFieldsWriter extends StoredFieldsWri
         numBufferedDocs >= maxDocsPerChunk;
   }
 
+  //注意，这个flush方法一定会被触发，数据才会从缓存刷盘，并且只有force=true时数据才刷盘，force=false时，只创建部分文件或者是docvalue数据被刷盘
   private void flush(boolean force) throws IOException {
     assert triggerFlush() != force;
     numChunks++;
@@ -244,6 +247,7 @@ public final class Lucene90CompressingStoredFieldsWriter extends StoredFieldsWri
     }
     final boolean sliced = bufferedDocs.size() >= 2L * chunkSize;
     final boolean dirtyChunk = force;
+    //这里的numStoredFields参数表示每条文档中字段个数
     writeHeader(docBase, numBufferedDocs, numStoredFields, lengths, sliced, dirtyChunk);
     ByteBuffersDataInput bytebuffers = bufferedDocs.toDataInput();
     // compress stored fields to fieldsStream.
@@ -457,7 +461,7 @@ public final class Lucene90CompressingStoredFieldsWriter extends StoredFieldsWri
   }
 
   @Override
-  public void finish(int numDocs) throws IOException {
+  public void finish(int numDocs) throws IOException {//这里也必然会被调用
     if (numBufferedDocs > 0) {
       flush(true);
     } else {
